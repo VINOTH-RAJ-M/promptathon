@@ -1,0 +1,91 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Promptathon admin</title><link rel="stylesheet" href="/static/style.css"></head><body>
+<div class="wrap wide">
+<div class="top"><h2 style="margin:0">Promptathon admin</h2><div class="btns"><a href="/export.xlsx"><button class="alt" type="button">📊 Export Excel (.xlsx)</button></a><a href="/export.csv"><button class="ghost" type="button">Export CSV</button></a><button class="danger" id="reset" type="button">Reset event</button></div></div>
+
+<div class="card top" style="margin-top:16px">
+ <div><span id="status" class="pill">idle</span> <strong id="rtitle">No round started</strong><div class="timer" id="timer">--:--</div><span class="muted" style="font-size:12px;display:block">Overall Round Timer</span></div>
+ <div id="roundBtns" class="btns"></div>
+ <div class="btns"><button class="ghost" id="plus" type="button">+1 min</button><button class="danger" id="end" type="button">End round</button></div>
+</div>
+
+<div class="card"><h3>Teams / Participants (<span id="pc">0</span>)</h3><div class="scroll"><table><thead><tr><th>Team Name</th><th>Team No</th><th>Status</th><th>Warnings</th><th>Last event</th><th>Submitted</th><th>Overall Score (/145)</th></tr></thead><tbody id="people"></tbody></table></div></div>
+
+<div class="card"><div class="top"><h3>Submissions & Evaluation</h3><select id="filter" style="width:auto"></select></div>
+<div class="scroll"><table><thead><tr><th>Team Details</th><th>Submitted Prompt</th><th>Edits</th><th>Time</th><th>Auto Score (Editable)</th></tr></thead><tbody id="subs"></tbody></table></div></div>
+</div>
+
+<script id="rounds-data" type="application/json">{{ initial_rounds | default([], true) | tojson | safe }}</script>
+<script src="{{ url_for('static', filename='socket.io.min.js') }}"></script>
+<script>window.io||document.write('<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"><\/script>')</script>
+<script>
+const $=id=>document.getElementById(id);
+const initialDataElem = $('rounds-data');
+const initialRounds = initialDataElem ? JSON.parse(initialDataElem.textContent || '[]') : [];
+let D = { rounds: initialRounds, round: { status: 'idle', round_no: 1, title: '' }, people: [], subs: [], max: 2 };
+let offset=0, built=false;
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function build(){
+  if(!D || !D.rounds || !D.rounds.length) return;
+  built=true;
+  $('roundBtns').innerHTML=D.rounds.map((r,i)=>`<button class="alt" data-i="${i}" type="button">Start R${i+1}: ${esc(r.title)} (${r.minutes}m)</button>`).join('');
+  $('roundBtns').onclick=e=>{
+    const b=e.target.closest('button'); if(!b) return;
+    const i=+b.dataset.i;
+    if(D.round && D.round.status==='running' && !confirm('A round is running. Start Round '+(i+1)+' anyway?')) return;
+    if(window.socket) socket.emit('start_round',{index:i});
+    $('filter').value=i;
+  };
+  $('filter').innerHTML=D.rounds.map((r,i)=>`<option value="${i}">Round ${i+1}: ${esc(r.title)}</option>`).join('');
+  $('filter').onchange=render;
+}
+
+function render(){
+  if(!D) return;
+  const r=D.round || { status: 'idle', title: '' };
+  $('status').textContent=r.status || 'idle';
+  $('status').className='pill '+(r.status==='running'?'ok':'');
+  $('rtitle').textContent=r.title?('Round '+r.round_no+': '+r.title):'No round started';
+  $('pc').textContent=(D.people||[]).length;
+  $('people').innerHTML=(D.people||[]).map(p=>`<tr><td><strong>${esc(p.name)}</strong></td><td>${esc(p.roll)}</td>
+   <td><span class="pill ${p.disqualified?'bad':(p.online?'ok':'')}">${p.disqualified?'DISQUALIFIED':(p.online?'online':'offline')}</span></td>
+   <td><span class="pill ${p.disqualified?'bad':(p.warnings>=D.max?'bad':(p.warnings?'':'ok'))}">${p.warnings}/${D.max}</span></td>
+   <td class="muted">${esc(p.last_event)}</td><td>${p.submitted}/${(D.rounds||[]).length}</td><td><strong>${p.total} / 145</strong></td></tr>`).join('') || '<tr><td colspan="7" class="muted">No participants yet.</td></tr>';
+  if(document.activeElement && document.activeElement.classList.contains('sc')) return;
+  const f=+$('filter').value;
+  $('subs').innerHTML=(D.subs||[]).filter(s=>s.round===f).map(s=>`<tr><td><strong>${esc(s.name)}</strong><br><span class="muted">Team No: ${esc(s.roll)}</span></td>
+   <td class="prompt">${esc(s.prompt)}</td><td>${s.count}</td><td>${new Date(s.time*1000).toLocaleTimeString()}</td>
+   <td><input class="sc" type="number" step="0.5" value="${esc(s.score)}" data-k="${esc(s.key)}"></td></tr>`).join('')||'<tr><td colspan="5" class="muted">No submissions yet for this round.</td></tr>';
+}
+
+// Initial render immediately so buttons & dropdown always show up without delay
+if(initialRounds && initialRounds.length > 0){
+  build();
+  render();
+}
+
+let socket = null;
+try {
+  socket = io();
+  window.socket = socket;
+  socket.on('admin_data', d=>{
+    D=d;
+    offset=d.round.server_now-Date.now()/1000;
+    build();
+    render();
+  });
+} catch(err) {
+  console.error("Socket error:", err);
+}
+
+$('subs').addEventListener('change',e=>{ if(e.target.classList.contains('sc') && window.socket) socket.emit('set_score',{key:e.target.dataset.k,value:e.target.value}); });
+$('end').onclick=()=>confirm('End the current round now?')&&window.socket&&socket.emit('end_round');
+$('plus').onclick=()=>window.socket&&socket.emit('add_time',{seconds:60});
+$('reset').onclick=()=>confirm('Delete ALL participants, submissions and scores?')&&window.socket&&socket.emit('reset_all');
+setInterval(()=>{
+  if(!D||!D.round||D.round.status!=='running'){ $('timer').textContent='--:--'; return; }
+  const left=Math.max(0,Math.ceil(D.round.end_time-(Date.now()/1000+offset)));
+  $('timer').textContent=String(Math.floor(left/60)).padStart(2,'0')+':'+String(left%60).padStart(2,'0');
+},250);
+</script></body></html>

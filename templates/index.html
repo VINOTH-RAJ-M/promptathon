@@ -1,0 +1,9 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Promptathon</title><link rel="stylesheet" href="/static/style.css"></head><body>
+<div class="wrap" style="max-width:480px;padding-top:60px">
+<h1>Promptathon</h1><p class="muted">Enter your team details to join. Stay on this page during rounds.</p>
+<form class="card" method="post" action="/join">
+<label for="team_name">Team Name</label><input id="team_name" name="team_name" placeholder="Enter team name" required autocomplete="off">
+<label for="team_number">Team Number</label><input id="team_number" name="team_number" placeholder="Enter team number" required autocomplete="off">
+{% if error %}<p class="err">{{ error }}</p>{% endif %}
+<p><button type="submit">Enter the Test</button></p></form></div></body></html>

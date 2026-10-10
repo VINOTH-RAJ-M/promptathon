@@ -1,0 +1,5 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin login</title><link rel="stylesheet" href="/static/style.css"></head><body>
+<div class="wrap" style="max-width:420px;padding-top:60px"><h1>Admin login</h1>
+<form class="card" method="post"><label for="p">Password</label><input id="p" name="password" type="password" required autofocus>
+{% if error %}<p class="err">{{ error }}</p>{% endif %}<p><button>Sign in</button></p></form></div></body></html>

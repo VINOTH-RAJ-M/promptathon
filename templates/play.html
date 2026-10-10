@@ -1,0 +1,366 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Promptathon</title><link rel="stylesheet" href="/static/style.css"></head><body>
+<div class="wrap">
+<div class="top"><div><h2 style="margin:0">Promptathon</h2><span class="muted">Team: <strong>{{ name }}</strong> | Team No: <strong>{{ roll }}</strong></span></div>
+<div>Warnings: <span id="wc" class="pill ok">0/2</span> <button class="ghost" id="fs" type="button">Enter fullscreen</button></div></div>
+<div id="banner" class="banner" hidden></div>
+
+<div id="idle" class="card">
+  <h3>Waiting for the next round</h3>
+  <p class="muted">The admin will start the round. Please stay on this tab. This page will update automatically.</p>
+</div>
+
+<div id="live" hidden>
+ <div class="card top" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;background:linear-gradient(135deg, #14213d 0%, #1e293b 100%);color:#fff;border:none">
+   <div>
+     <span class="pill" style="background:rgba(255,255,255,0.15);color:#fff;font-size:12px;font-weight:700;letter-spacing:0.5px;margin-bottom:6px;display:inline-block">LIVE ROUND</span>
+     <h3 id="rt" style="margin:0;color:#fff"></h3>
+     <span id="round_sub_info" style="color:#cbd5e1;font-size:13px">Overall round time remaining</span>
+   </div>
+   <div style="display:flex;align-items:center;gap:16px;background:rgba(255,255,255,0.08);padding:10px 18px;border-radius:10px;border:1px solid rgba(255,255,255,0.12)">
+     <div style="text-align:right">
+       <div style="font-size:11px;font-weight:700;color:#f8fafc;letter-spacing:0.5px;text-transform:uppercase">OVERALL ROUND TIMER</div>
+       <div id="timer" class="timer" style="color:#fff;font-size:38px;line-height:1;margin-top:2px">--:--</div>
+     </div>
+   </div>
+ </div>
+ 
+ <div id="round_content_card" class="card">
+   <div class="top" style="align-items:center">
+     <div>
+       <h3 style="margin:0">Themes / Questions Sequence</h3>
+       <span id="step_indicator" class="pill" style="margin-top:4px;display:inline-block">1 / 1</span>
+     </div>
+     <div style="display:flex;align-items:center;gap:12px;background:#fff8ee;border:1.5px solid var(--saffron);padding:6px 14px;border-radius:10px">
+       <div>
+         <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase">Active Theme Timer</div>
+         <div style="font-size:12px;color:var(--ink)"><span id="theme_name_label">Theme 1</span> (<span id="theme_mins_display">10</span>m allocated)</div>
+       </div>
+       <div id="theme_timer" style="font-size:24px;font-weight:800;font-family:monospace;color:var(--ink);background:#fff;padding:2px 10px;border-radius:6px;border:1px solid var(--line)">--:--</div>
+     </div>
+   </div>
+   <p id="instruction" class="q-instr"></p>
+   <div id="seq_bar" class="seq-bar"></div>
+   <div id="q_display" class="q-box">
+     <h4 id="q_title" class="q-title"></h4>
+     <p id="q_desc" class="q-desc"></p>
+   </div>
+
+   <div style="margin-top:20px">
+     <div class="top">
+       <label for="prompt" id="prompt_label" style="margin:0">Your Prompt for this Question</label>
+       <span id="chosen_theme_badge" class="pill ok" style="font-size:13px">Question 1 Box</span>
+     </div>
+     <p class="muted" style="font-size:13px;margin:6px 0 10px">Write your prompt for this active theme below. Note: Previous questions are permanently locked once their time is up, and next questions reveal automatically when current theme time finishes.</p>
+     <textarea id="prompt" spellcheck="false" placeholder="Write your prompt for this active theme here..."></textarea>
+   </div>
+
+   <div class="nav-btns" style="display:flex;justify-content:flex-end;align-items:center;margin-top:14px">
+     <button id="next_q" class="ghost" type="button" style="min-width:240px;font-weight:600" disabled>🔒 Next Theme (Locked)</button>
+   </div>
+
+   <div style="margin-top:24px;padding-top:16px;border-top:1px dashed var(--line);text-align:center">
+     <button id="send" type="button" class="submit-highlight" style="width:100%;max-width:320px;font-size:16px;cursor:pointer">
+       🚀 Final Submit All Prompts
+     </button>
+     <div style="margin-top:8px"><span id="msg" class="muted" role="status" style="font-weight:600"></span></div>
+   </div>
+ </div>
+
+ <div id="submitted_wait" class="card" hidden style="border-left: 5px solid var(--green); background: #f0faf4;">
+   <h3 style="color:var(--green);margin:0 0 10px">✅ Prompt Submitted Successfully!</h3>
+   <p style="color:var(--ink);font-weight:600;font-size:16px;margin-bottom:12px">Please wait for the next round until admin gives access.</p>
+   <p class="muted" style="margin:0 0 8px;font-size:13px">Summary of your submitted prompt:</p>
+   <div id="submitted_preview" class="scroll prompt" style="background:#fff;padding:14px;border:1px solid var(--line);border-radius:8px;max-height:260px;overflow-y:auto;font-size:14px;line-height:1.6"></div>
+ </div>
+</div>
+
+<div id="done" class="card" hidden style="border-left: 5px solid var(--saffron); background: #fffcf4;">
+  <h3 style="color:var(--ink);margin:0 0 10px">⏱️ Round Time Over!</h3>
+  <p id="round_over_msg" style="color:var(--ink);font-weight:600;font-size:16px;margin-bottom:8px">Total round time limit is over.</p>
+  <p class="muted" style="margin:0">Please wait for the next round until admin gives access.</p>
+</div>
+
+<div id="disqualified" class="card" hidden style="border-left: 5px solid var(--red); background: #fff5f5;">
+  <h3 style="color:var(--red);margin:0 0 10px">🚫 Disqualified from Participation</h3>
+  <p id="disqualify_msg" style="color:var(--ink);font-weight:600;margin-bottom:10px">You have exceeded the maximum limit of 2 warnings (Tab switches/policy violations) and have been excluded from this competition.</p>
+  <p class="muted" style="margin:0">Your ability to submit prompts has been revoked. Contact the coordinator if you believe this was in error.</p>
+</div>
+</div>
+
+<script src="{{ url_for('static', filename='socket.io.min.js') }}"></script>
+<script>window.io||document.write('<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"><\/script>')</script>
+<script>
+const $=id=>document.getElementById(id);
+const socket=io();
+let st=null, offset=0, lastRound=null, isDisqualified=false;
+let roundQuestions = [], currentQIndex = 0;
+let userAnswers = {}; // { 0: "text...", 1: "text..." }
+let isSubmitted = false;
+
+function saveCurrentBox(){
+  if($('prompt')){
+    userAnswers[currentQIndex] = $('prompt').value;
+  }
+}
+
+function showQuestion(idx){
+  if(!roundQuestions || !roundQuestions.length) return;
+  saveCurrentBox();
+
+  const activeSlot = (st && st.active_slot !== undefined) ? st.active_slot : 0;
+  // Strictly lock participants into the current active slot while running
+  if(st && st.status === 'running' && idx !== activeSlot){
+    idx = activeSlot;
+  }
+
+  if(idx < 0) idx = 0;
+  if(idx >= roundQuestions.length) idx = roundQuestions.length - 1;
+  currentQIndex = idx;
+  
+  const q = roundQuestions[idx];
+  const qShort = q.title ? q.title.split(':')[0] : ('Theme ' + (idx + 1));
+  const qMins = q.minutes || (st ? st.theme_minutes : 10);
+
+  $('q_title').textContent = q.title || ('Question ' + (idx + 1));
+  $('q_desc').textContent = q.details || q.problem || '';
+  $('step_indicator').textContent = (idx + 1) + ' of ' + roundQuestions.length;
+  $('prompt_label').textContent = 'Your Prompt for ' + qShort;
+  $('chosen_theme_badge').textContent = qShort + ' Answer Box (' + qMins + ' min)';
+  if($('theme_name_label')) $('theme_name_label').textContent = qShort;
+  if($('theme_mins_display')) $('theme_mins_display').textContent = qMins;
+
+  // Load this specific question's saved answer
+  $('prompt').value = userAnswers[idx] || '';
+
+  renderSeqBar();
+}
+
+function renderSeqBar(){
+  if(!roundQuestions || !roundQuestions.length) return;
+  const activeSlot = (st && st.active_slot !== undefined) ? st.active_slot : 0;
+  $('seq_bar').innerHTML = roundQuestions.map((q, i)=>{
+    const qMins = q.minutes || (st ? st.theme_minutes : 10);
+    const shortTitle = q.title ? q.title.split(':')[0] : ('Theme ' + (i + 1));
+    if(i < activeSlot){
+      return `<button type="button" class="seq-btn completed" disabled title="Time over for this theme. Previous questions are locked.">
+        ✓ Step ${i+1}: ${shortTitle} <span style="font-size:11px;opacity:0.8">(Done)</span>
+      </button>`;
+    } else if(i === activeSlot){
+      return `<button type="button" class="seq-btn active" data-idx="${i}" title="Current Active Theme">
+        ▶ Step ${i+1}: ${shortTitle} <span style="font-size:12px">(${qMins}m)</span>
+      </button>`;
+    } else {
+      return `<button type="button" class="seq-btn locked" disabled title="Locked! Unlocks once current theme time completes.">
+        🔒 Step ${i+1}: ${shortTitle} <span style="font-size:11px">(Locked)</span>
+      </button>`;
+    }
+  }).join('');
+}
+
+if($('next_q')){
+  $('next_q').onclick=()=>{
+    const activeSlot = (st && st.active_slot !== undefined) ? st.active_slot : 0;
+    showQuestion(activeSlot);
+  };
+}
+
+socket.on('round_state',s=>{
+  const prevActiveSlot = st ? st.active_slot : null;
+  st=s; offset=s.server_now-Date.now()/1000;
+  if(isDisqualified) return;
+  $('idle').hidden = s.status !== 'idle';
+  $('live').hidden = s.status !== 'running';
+  $('done').hidden = s.status !== 'ended';
+
+  if(s.status==='running'){
+    $('rt').textContent='Round '+s.round_no+': '+s.title;
+    $('round_sub_info').textContent = 'Overall Round Timer (' + (s.total_minutes || 40) + ' mins total)';
+    $('instruction').textContent = s.instruction || 'Review the questions below in sequence and craft your prompt.';
+    $('round_over_msg').textContent = (s.total_minutes || 40) + ' minutes total round time limit is over.';
+    
+    if(s.questions && s.questions.length > 0){
+      roundQuestions = s.questions;
+    } else if(s.problem) {
+      roundQuestions = [{ id: 1, title: s.title, details: s.problem, minutes: s.total_minutes || 15 }];
+    } else {
+      roundQuestions = [];
+    }
+
+    const currentSlot = s.active_slot !== undefined ? s.active_slot : 0;
+
+    if(lastRound !== s.round_no){
+      userAnswers = {};
+      isSubmitted = false;
+      $('prompt').value = '';
+      $('msg').textContent = '';
+      $('round_content_card').hidden = false;
+      $('submitted_wait').hidden = true;
+      lastRound = s.round_no;
+      showQuestion(currentSlot);
+    } else {
+      if(!isSubmitted){
+        $('round_content_card').hidden = false;
+        $('submitted_wait').hidden = true;
+      }
+      if(prevActiveSlot !== null && prevActiveSlot !== currentSlot){
+        banner('🔔 Time for Theme ' + (prevActiveSlot + 1) + ' finished! Theme ' + (currentSlot + 1) + ' is now unlocked.', 'banner');
+      }
+      showQuestion(currentSlot);
+    }
+  }
+  tick();
+});
+
+socket.on('me',m=>{
+  if(m.disqualified){
+    showDisqualified(m.disqualified_reason);
+  } else {
+    setWarn(m.warnings, m.max);
+    if(m.answers && Object.keys(m.answers).length > 0){
+      userAnswers = Object.assign({}, m.answers);
+      if($('prompt')) $('prompt').value = userAnswers[currentQIndex] || '';
+    }
+    if(m.is_submitted){
+      isSubmitted = true;
+      $('round_content_card').hidden = true;
+      $('submitted_wait').hidden = false;
+      if(m.prompt) $('submitted_preview').textContent = m.prompt;
+    }
+  }
+});
+
+socket.on('disqualified',d=>{
+  showDisqualified(d.reason);
+});
+
+socket.on('warning',w=>{
+  setWarn(w.count,w.max);
+  if(w.count === 1){
+    banner('⚠️ Warning 1 of '+w.max+': Tab switch/violation detected! Please stay on this tab.', 'banner');
+  } else if(w.count === 2){
+    banner('🚨 Warning 2 of '+w.max+' (FINAL WARNING): Tab switch detected! Any further switch will disqualify you.', 'banner danger');
+  } else {
+    banner('Warning '+w.count+' of '+w.max+': stay on this page.', 'banner danger');
+  }
+});
+
+socket.on('submit_result',r=>{
+  $('msg').textContent=r.msg;
+  $('msg').style.color=r.ok?'var(--green)':'var(--red)';
+  if(r.ok){
+    isSubmitted = true;
+    $('round_content_card').hidden = true;
+    $('submitted_wait').hidden = false;
+    $('submitted_preview').textContent = r.prompt || $('prompt').value;
+  }
+});
+
+function showDisqualified(reason){
+  isDisqualified=true;
+  $('idle').hidden=true;
+  $('live').hidden=true;
+  $('done').hidden=true;
+  $('disqualified').hidden=false;
+  if(reason) $('disqualify_msg').textContent=reason;
+  $('prompt').disabled=true;
+  $('send').disabled=true;
+  $('wc').textContent='DISQUALIFIED';
+  $('wc').className='pill bad';
+}
+
+function setWarn(c,max){
+  if(isDisqualified) return;
+  const e=$('wc');
+  e.textContent=c+'/'+max;
+  e.className='pill '+(c>0?'bad':'ok');
+}
+
+function banner(t, cls){
+  const b=$('banner');
+  b.textContent=t;
+  b.className=cls || 'banner';
+  b.hidden=false;
+  setTimeout(()=>b.hidden=true,7000);
+}
+
+function tick(){
+  if(!st||st.status!=='running'||isDisqualified) return;
+  const now = Date.now()/1000 + offset;
+  const left = Math.max(0, Math.ceil(st.end_time - now));
+  $('timer').textContent = String(Math.floor(left/60)).padStart(2,'0') + ':' + String(left%60).padStart(2,'0');
+  $('timer').className = 'timer' + (left<=60 ? ' low' : '');
+
+  // Calculate theme slot timer
+  if(roundQuestions && roundQuestions.length > 0){
+    const activeSlot = (st.active_slot !== undefined) ? st.active_slot : currentQIndex;
+    const qMins = roundQuestions[activeSlot]?.minutes || st.theme_minutes || 10;
+    const totalRoundSec = (st.total_minutes || 40) * 60;
+    const roundStart = st.start_time || (st.end_time - totalRoundSec);
+    const elapsed = Math.max(0, now - roundStart);
+    const slotStart = activeSlot * qMins * 60;
+    const slotEnd = (activeSlot + 1) * qMins * 60;
+
+    let themeLeft = 0;
+    if(elapsed < slotStart){
+      themeLeft = qMins * 60;
+    } else if(elapsed >= slotEnd){
+      themeLeft = 0;
+    } else {
+      themeLeft = Math.ceil(slotEnd - elapsed);
+    }
+    const themeLeftStr = String(Math.floor(themeLeft/60)).padStart(2,'0') + ':' + String(themeLeft%60).padStart(2,'0');
+
+    if($('theme_timer')){
+      $('theme_timer').textContent = themeLeftStr;
+      if(themeLeft <= 60 && themeLeft > 0){
+        $('theme_timer').style.color = 'var(--red)';
+      } else {
+        $('theme_timer').style.color = 'var(--ink)';
+      }
+    }
+
+    // Update next_q button state
+    if($('next_q')){
+      if(activeSlot >= roundQuestions.length - 1){
+        $('next_q').hidden = true;
+      } else {
+        $('next_q').hidden = false;
+        if(themeLeft > 0){
+          $('next_q').disabled = true;
+          $('next_q').textContent = '🔒 Next Theme (Unlocks in ' + themeLeftStr + ')';
+        } else {
+          $('next_q').disabled = false;
+          $('next_q').textContent = 'Next Question →';
+        }
+      }
+    }
+  }
+}
+setInterval(tick,250);
+
+$('send').onclick=()=>{
+  if(isDisqualified) return;
+  saveCurrentBox();
+  
+  // Check if at least one prompt was filled
+  const hasContent = Object.values(userAnswers).some(val => val && val.trim().length > 0);
+  if(!hasContent){
+    $('msg').textContent = 'Please write a prompt in the answer box before submitting.';
+    $('msg').style.color = 'var(--red)';
+    return;
+  }
+  
+  if(confirm('Are you sure you want to finalize and submit your prompt?')){
+    socket.emit('submit', { answers: userAnswers, prompt: $('prompt').value });
+  }
+};
+$('fs').onclick=()=>document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();
+
+const running=()=>st&&st.status==='running'&&!isDisqualified;
+const flag=t=>{ if(running()) socket.emit('violation',{type:t}); };
+document.addEventListener('visibilitychange',()=>{ if(document.hidden) flag('tab_switch'); });
+document.addEventListener('fullscreenchange',()=>{ if(!document.fullscreenElement) flag('fullscreen_exit'); });
+['paste','copy','cut','drop'].forEach(ev=>$('prompt').addEventListener(ev,e=>{ e.preventDefault(); flag(ev+'_attempt'); }));
+document.addEventListener('contextmenu',e=>e.preventDefault());
+</script></body></html>
